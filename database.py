@@ -5,55 +5,51 @@ import shutil
 from datetime import datetime
 
 def get_db_path():
-    """إرجاع مسار قاعدة البيانات الدائم والموحد (AppData لمنع التكرار وحماية البيانات عند التحديثات)"""
-    if getattr(sys, 'frozen', False):
-        exe_dir = os.path.dirname(sys.executable)
-        app_data = os.path.join(os.environ.get('APPDATA', exe_dir), 'Fawateery')
-        if not os.path.exists(app_data):
-            try:
-                os.makedirs(app_data, exist_ok=True)
-            except Exception:
-                pass
-        target_db = os.path.join(app_data, 'accounting.db')
-        
-        # إذا لم تكن موجودة في AppData، نتحقق أولاً هل توجد قاعدة بيانات سابقة لنقلها تلقائياً بدون فقدان أي بيانات
-        if not os.path.exists(target_db):
-            candidate_locations = [
-                os.path.join(exe_dir, 'accounting.db'),
-                os.path.join(os.getcwd(), 'accounting.db')
-            ]
-            migrated = False
-            for cand in candidate_locations:
-                if os.path.exists(cand) and os.path.abspath(cand) != os.path.abspath(target_db):
-                    try:
-                        shutil.copy2(cand, target_db)
-                        migrated = True
-                        print(f"✅ تم نقل قاعدة البيانات القائمة تلقائياً من {cand} إلى {target_db}")
-                        break
-                    except Exception as e:
-                        print(f"⚠️ فشل نقل قاعدة البيانات من {cand}: {e}")
-            
-            if not migrated and hasattr(sys, '_MEIPASS'):
-                bundled = os.path.join(sys._MEIPASS, 'accounting.db')
-                if os.path.exists(bundled):
-                    try:
-                        shutil.copy2(bundled, target_db)
-                    except Exception:
-                        pass
-        return target_db
-    else:
-        # نحن في development
-        return os.path.abspath('accounting.db')
+    """إرجاع مسار قاعدة البيانات الدائم والموحد لجميع النسخ (AppData لمنع التكرار وحماية البيانات عند التحديثات)"""
+    exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    app_data = os.path.join(os.environ.get('APPDATA', exe_dir), 'Fawateery')
+    if not os.path.exists(app_data):
+        try:
+            os.makedirs(app_data, exist_ok=True)
+        except Exception:
+            pass
+    target_db = os.path.join(app_data, 'accounting.db')
+
+    # إذا لم تكن موجودة في AppData، نتحقق أولاً هل توجد قاعدة بيانات محلية سابقة لنقلها تلقائياً بدون فقدان أي بيانات
+    if not os.path.exists(target_db):
+        src_dir = os.path.dirname(os.path.abspath(__file__))
+        candidate_locations = [
+            os.path.join(exe_dir, 'accounting.db'),
+            os.path.join(src_dir, 'accounting.db'),
+            os.path.join(src_dir, 'Fawateery', 'accounting.db'),
+            os.path.join(os.getcwd(), 'accounting.db'),
+        ]
+        migrated = False
+        for cand in candidate_locations:
+            if os.path.exists(cand) and os.path.abspath(cand) != os.path.abspath(target_db):
+                try:
+                    shutil.copy2(cand, target_db)
+                    migrated = True
+                    print(f"✅ تم نقل قاعدة البيانات القائمة تلقائياً من {cand} إلى {target_db}")
+                    break
+                except Exception as e:
+                    print(f"⚠️ فشل نقل قاعدة البيانات من {cand}: {e}")
+
+        if not migrated and hasattr(sys, '_MEIPASS'):
+            bundled = os.path.join(sys._MEIPASS, 'accounting.db')
+            if os.path.exists(bundled):
+                try:
+                    shutil.copy2(bundled, target_db)
+                except Exception:
+                    pass
+    return target_db
 
 def get_app_data_dir():
-    """إرجاع مجلد AppData للبرنامج"""
-    if getattr(sys, 'frozen', False):
-        app_data = os.path.join(os.environ['APPDATA'], 'Fawateery')
-        if not os.path.exists(app_data):
-            os.makedirs(app_data)
-        return app_data
-    else:
-        return '.'
+    """إرجاع مجلد AppData الموحد للبرنامج"""
+    app_data = os.path.join(os.environ.get('APPDATA', '.'), 'Fawateery')
+    if not os.path.exists(app_data):
+        os.makedirs(app_data, exist_ok=True)
+    return app_data
 
 def create_database(db_path=None):
     db_path = db_path or get_db_path()
