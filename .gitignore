@@ -1,0 +1,14 @@
+﻿__pycache__/
+*.pyc
+.venv*/
+build/
+dist/
+release_build/
+release_dist/
+*.db
+*.db-journal
+backups/
+Invoices/
+*.pdf
+*.exe
+Fawateery_update.exe

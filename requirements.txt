@@ -1,0 +1,9 @@
+matplotlib
+pandas
+openpyxl
+fpdf2
+arabic-reshaper
+python-bidi
+qrcode[pil]
+Pillow
+tkcalendar
