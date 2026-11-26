@@ -105,8 +105,14 @@ class ClassicInvoicePDF(FPDF):
         self.set_xy(70, y)
         self.cell(20, 10, "Inv No.", 0, 0, 'L')
         self.set_text_color(255,0,0)
-        doc_num = invoice_data.get('quote_number' if self.is_quote else 'invoice_number', '')
-        self.cell(20, 10, str(doc_num), 0, 0, 'C')
+        doc_num = str(invoice_data.get('quote_number' if self.is_quote else 'invoice_number', ''))
+        num_font_size = 12
+        self.set_font('Amiri', 'B', num_font_size)
+        while num_font_size > 6 and self.get_string_width(doc_num) > 19:
+            num_font_size -= 0.5
+            self.set_font('Amiri', 'B', num_font_size)
+        self.cell(20, 10, doc_num, 0, 0, 'C')
+        self.set_font('Amiri', 'B', 12)
         self.set_text_color(0,0,0)
         self.cell(25, 10, ar("رقم الفاتورة:"), 0, 0, 'R')
         
@@ -266,10 +272,9 @@ class ClassicInvoicePDF(FPDF):
         # Amount in Words
         from invoices_module import number_to_arabic_text
         words = number_to_arabic_text(g_total)
-        self.set_xy(75, y + 16)
-        self.rounded_rect(75, y + 16, cond_w, 16, 2, 'D')
-        self.set_xy(75, y + 20)
-        self.cell(cond_w, 8, ar(words), 0, 0, 'C')
+        box_x, box_y, box_w_words, box_h_words = 75, y + 16, cond_w, 18
+        self.rounded_rect(box_x, box_y, box_w_words, box_h_words, 2, 'D')
+        self._draw_wrapped_arabic_in_box(box_x, box_y, box_w_words, box_h_words, words)
         
         # Signature Box (Top Left)
         self.set_xy(10, y)
@@ -307,6 +312,59 @@ class ClassicInvoicePDF(FPDF):
         self.cell(0, 4, line2, 0, 1, 'C')
         self.cell(0, 4, ar(line3), 0, 1, 'C')
         self.set_auto_page_break(auto=True, margin=15)
+
+    def _draw_wrapped_arabic_in_box(self, x, y, w, h, text, max_font_size=9.5, min_font_size=5.0):
+        """Wrap logical Arabic text into lines and auto-fit font size so it never overflows the box."""
+        raw_words = str(text or "").split()
+        if not raw_words:
+            return
+        max_w = w - 4
+        max_h = h - 2
+
+        chosen_size = min_font_size
+        chosen_lines = [" ".join(raw_words)]
+        chosen_line_h = max(3.4, min_font_size * 0.52)
+
+        size = max_font_size
+        while size >= min_font_size - 1e-6:
+            self.set_font('Amiri', '', size)
+            lines = []
+            curr = ""
+            word_too_wide = False
+            for word in raw_words:
+                candidate = f"{curr} {word}".strip() if curr else word
+                if self.get_string_width(ar(candidate)) <= max_w:
+                    curr = candidate
+                else:
+                    if curr:
+                        lines.append(curr)
+                        curr = word
+                        if self.get_string_width(ar(word)) > max_w:
+                            word_too_wide = True
+                    else:
+                        lines.append(word)
+                        curr = ""
+                        word_too_wide = True
+            if curr:
+                lines.append(curr)
+
+            line_h = max(3.4, size * 0.52)
+            if not word_too_wide and (len(lines) * line_h <= max_h):
+                chosen_size = size
+                chosen_lines = lines
+                chosen_line_h = line_h
+                break
+            chosen_size = size
+            chosen_lines = lines
+            chosen_line_h = line_h
+            size = round(size - 0.5, 2)
+
+        self.set_font('Amiri', '', chosen_size)
+        total_text_h = len(chosen_lines) * chosen_line_h
+        start_y = y + max(1.0, (h - total_text_h) / 2.0)
+        for idx, line in enumerate(chosen_lines):
+            self.set_xy(x, start_y + idx * chosen_line_h)
+            self.cell(w, chosen_line_h, ar(line), 0, 0, 'C')
 
     def add_invoice_data(self, invoice, customer_data):
         import ast

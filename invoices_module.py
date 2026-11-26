@@ -237,6 +237,23 @@ except ImportError:
     QR_AVAILABLE = False
 
 # دالة تحويل الأرقام إلى حروف عربية
+def get_next_sequential_number(db, table, column):
+    """Return next 3-digit sequential number (e.g. '001', '002') for invoices or price_quotes."""
+    try:
+        max_num = 0
+        rows = db.execute_query(f"SELECT {column} FROM {table}")
+        for r in rows:
+            if r and r[0]:
+                val = str(r[0]).strip()
+                if val.isdigit():
+                    num = int(val)
+                    if num > max_num:
+                        max_num = num
+        return f"{max_num + 1:03d}"
+    except Exception:
+        return "001"
+
+
 def number_to_arabic_text(number):
     """تحويل الأرقام إلى نص عربي v37"""
     if not number or number == 0:
@@ -1042,10 +1059,15 @@ class CustomInvoicePDF(FPDF):
         # Amount in words below grid
         words_y = row2_y + box_h + 3
         amount_in_words = number_to_arabic_text(grand_total)
+        words_display = ar(f"المبلغ بالحروف: {amount_in_words}")
+        words_font_size = 11
+        self.set_font('Amiri', 'B', words_font_size)
+        while words_font_size > 6.5 and self.get_string_width(words_display) > 190:
+            words_font_size -= 0.5
+            self.set_font('Amiri', 'B', words_font_size)
         self.set_xy(10, words_y)
-        self.set_font('Amiri', 'B', 11) 
         self.set_text_color(*main_rgb)
-        self.cell(190, 6, ar(f"المبلغ بالحروف: {amount_in_words}"), 0, 1, 'R')
+        self.cell(190, 6, words_display, 0, 1, 'R')
         self.set_y(words_y + 8)
 
     def _draw_total_box(self, x, y, w, h, label_en, label_ar, value):
@@ -2040,43 +2062,9 @@ class InvoiceDialog:
         self.invoice_number = ttk.Entry(info_frame, width=22, font=('Segoe UI', 10))
         self.invoice_number.grid(row=0, column=1, padx=8, pady=8, ipady=4)
         if self.is_quote:
-            try:
-                max_quote_num = 0
-                rows = self.db.execute_query("SELECT quote_number FROM price_quotes")
-                for r in rows:
-                    if r and r[0]:
-                        val = str(r[0]).strip()
-                        m = re.findall(r'\d+', val)
-                        if m:
-                            try:
-                                num = int(m[-1])
-                                if num > max_quote_num:
-                                    max_quote_num = num
-                            except:
-                                pass
-                next_num = max_quote_num + 1
-                self.invoice_number.insert(0, f"{next_num:03d}")
-            except Exception:
-                self.invoice_number.insert(0, "001")
+            self.invoice_number.insert(0, get_next_sequential_number(self.db, "price_quotes", "quote_number"))
         else:
-            try:
-                max_inv_num = 0
-                rows = self.db.execute_query("SELECT invoice_number FROM invoices")
-                for r in rows:
-                    if r and r[0]:
-                        val = str(r[0]).strip()
-                        m = re.findall(r'\d+', val)
-                        if m:
-                            try:
-                                num = int(m[-1])
-                                if num > max_inv_num:
-                                    max_inv_num = num
-                            except:
-                                pass
-                next_num = max_inv_num + 1
-                self.invoice_number.insert(0, f"{next_num:03d}")
-            except Exception:
-                self.invoice_number.insert(0, f"{len(self.db.execute_query('SELECT id FROM invoices'))+1:03d}")
+            self.invoice_number.insert(0, get_next_sequential_number(self.db, "invoices", "invoice_number"))
         
         ttk.Label(info_frame, text="التاريخ:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=2, sticky='w', padx=8, pady=8)
         try:
@@ -2714,7 +2702,7 @@ class InvoiceDialog:
                 customer_id = self.db.execute_query("SELECT last_insert_rowid()")[0][0]
                 emit_customer_change(customer_id)
         
-        invoice_number = self.invoice_number.get()
+        invoice_number = self.invoice_number.get().strip() or get_next_sequential_number(self.db, "invoices", "invoice_number")
         date = self.date_entry.get()
         
         subtotal = sum(float(item.get('subtotal', item.get('quantity', 0) * item.get('price', item.get('unit_price', 0)))) for item in self.items)
@@ -2727,7 +2715,7 @@ class InvoiceDialog:
         grand_total = net + tax
         
         if self.is_quote:
-            quote_number = self.invoice_number.get().strip() or f"QUO-{datetime.now().strftime('%Y%m%d%H%M')}"
+            quote_number = self.invoice_number.get().strip() or get_next_sequential_number(self.db, "price_quotes", "quote_number")
             date = self.date_entry.get().strip() if hasattr(self.date_entry, 'get') else datetime.now().strftime('%Y-%m-%d')
             try:
                 if self.invoice_id:
@@ -2932,7 +2920,7 @@ class InvoiceDialog:
                 customer_id = None
                 customer_data = ("", customer_info, "", "", "")
         
-        invoice_number = self.invoice_number.get()
+        invoice_number = self.invoice_number.get().strip() or get_next_sequential_number(self.db, "invoices", "invoice_number")
         date = self.date_entry.get()
         try:
             discount = float(self.discount_entry.get() or 0)
@@ -4041,10 +4029,7 @@ class InvoiceModule:
         # إنشاء فاتورة جديدة مجمعة
         invoice_dialog = InvoiceDialog(self.parent, self.db, self.status_callback, self.load_invoices)
         
-        # تعيين بيانات الفاتورة المجمعة
-        invoice_dialog.invoice_number.delete(0, tk.END)
-        invoice_dialog.invoice_number.insert(0, f"COMBINED_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-        
+        # تعيين بيانات الفاتورة المجمعة (تحتفظ بالرقم التسلسلي 001+)
         invoice_dialog.date_entry.delete(0, tk.END)
         invoice_dialog.date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
         

@@ -288,6 +288,53 @@ class Database:
         
         self.conn = sqlite3.connect(self.db_path)
         self.c = self.conn.cursor()
+        self.normalize_document_numbers()
+
+    def normalize_document_numbers(self):
+        """Convert legacy INV-/QUO-/COMBINED_ numbers to sequential 001, 002, ... format."""
+        try:
+            # 1. Invoices
+            rows = self.c.execute("SELECT id, invoice_number FROM invoices ORDER BY id ASC").fetchall()
+            if any(not (r[1] and str(r[1]).strip().isdigit()) for r in rows):
+                used = {int(str(r[1]).strip()) for r in rows if r[1] and str(r[1]).strip().isdigit()}
+                next_n = 1
+                for row_id, old_num in rows:
+                    if old_num and str(old_num).strip().isdigit():
+                        continue
+                    while next_n in used:
+                        next_n += 1
+                    new_num = f"{next_n:03d}"
+                    used.add(next_n)
+                    next_n += 1
+                    self.c.execute("UPDATE invoices SET invoice_number = ? WHERE id = ?", (new_num, row_id))
+                    if old_num:
+                        self.c.execute(
+                            "UPDATE transactions SET description = ? WHERE description = ?",
+                            (f"فاتورة #{new_num}", f"فاتورة #{old_num}")
+                        )
+                        self.c.execute(
+                            "UPDATE treasury_transactions SET description = ? WHERE description = ?",
+                            (f"فاتورة #{new_num}", f"فاتورة #{old_num}")
+                        )
+
+            # 2. Price quotes
+            q_rows = self.c.execute("SELECT id, quote_number FROM price_quotes ORDER BY id ASC").fetchall()
+            if any(not (r[1] and str(r[1]).strip().isdigit()) for r in q_rows):
+                used_q = {int(str(r[1]).strip()) for r in q_rows if r[1] and str(r[1]).strip().isdigit()}
+                next_q = 1
+                for row_id, old_num in q_rows:
+                    if old_num and str(old_num).strip().isdigit():
+                        continue
+                    while next_q in used_q:
+                        next_q += 1
+                    new_num = f"{next_q:03d}"
+                    used_q.add(next_q)
+                    next_q += 1
+                    self.c.execute("UPDATE price_quotes SET quote_number = ? WHERE id = ?", (new_num, row_id))
+
+            self.conn.commit()
+        except Exception as e:
+            print(f"Warning normalizing document numbers: {e}")
     
     def verify_tables(self):
         conn = sqlite3.connect(self.db_path)
