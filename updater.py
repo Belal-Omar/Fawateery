@@ -13,7 +13,7 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-CURRENT_VERSION = "1.0.3"
+CURRENT_VERSION = "1.0.4"
 GITHUB_REPO = "Belal-Omar/Fawateery"
 VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
 # للاختبار فقط: تحويل فحص التحديث إلى خادم محلي (لا يُستخدم عند العميل)

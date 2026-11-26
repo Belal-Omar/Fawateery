@@ -1366,6 +1366,13 @@ class CustomerProjectSelectorDialog(tk.Toplevel):
                 return
             phone = phone_e.get().strip()
             tax = tax_e.get().strip()
+            from database import validate_tax_number
+            ok_tax, tax_res = validate_tax_number(tax)
+            if not ok_tax:
+                messagebox.showerror("خطأ", tax_res, parent=d)
+                tax_e.focus_set()
+                return
+            tax = tax_res
             addr = addr_e.get().strip()
             
             try:
@@ -1420,6 +1427,13 @@ class CustomerProjectSelectorDialog(tk.Toplevel):
                 return
             phone = phone_e.get().strip()
             tax = tax_e.get().strip()
+            from database import validate_tax_number
+            ok_tax, tax_res = validate_tax_number(tax)
+            if not ok_tax:
+                messagebox.showerror("خطأ", tax_res, parent=d)
+                tax_e.focus_set()
+                return
+            tax = tax_res
             addr = addr_e.get().strip()
             
             try:

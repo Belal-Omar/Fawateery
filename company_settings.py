@@ -214,6 +214,15 @@ class CompanySettingsDialog(tk.Toplevel):
             # جمع البيانات من الحقول
             for field, entry in self.entries.items():
                 self.settings[field] = entry.get()
+
+            from database import validate_tax_number
+            ok_tax, tax_res = validate_tax_number(self.settings.get('tax_number', ''))
+            if not ok_tax:
+                messagebox.showerror("خطأ", tax_res, parent=self)
+                if 'tax_number' in self.entries:
+                    self.entries['tax_number'].focus_set()
+                return
+            self.settings['tax_number'] = tax_res
             
             # حفظ في قاعدة البيانات - جميع الأعمدة الجديدة
             existing = self.db.execute_query("SELECT id FROM company_settings WHERE id = 1")

@@ -4,6 +4,14 @@ import sys
 import shutil
 from datetime import datetime
 
+def validate_tax_number(tax_number):
+    """Validate that a tax/VAT number is exactly 15 digits."""
+    val = str(tax_number or "").strip()
+    if not val.isdigit() or len(val) != 15:
+        return False, "❌ الرقم الضريبي يجب أن يتكون من 15 رقماً بالضبط (أرقام فقط)"
+    return True, val
+
+
 def get_db_path():
     """إرجاع مسار قاعدة البيانات الدائم والموحد لجميع النسخ (AppData لمنع التكرار وحماية البيانات عند التحديثات)"""
     exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))

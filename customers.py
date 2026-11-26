@@ -133,9 +133,17 @@ class CustomerDialog(tk.Toplevel):
             email = self.entries['email'].get().strip()
             
             if not name:
-                messagebox.showerror("خطأ", "❌ اسم العميل مطلوب")
+                messagebox.showerror("خطأ", "❌ اسم العميل مطلوب", parent=self)
                 self.entries['name'].focus()
                 return
+
+            from database import validate_tax_number
+            ok_tax, tax_res = validate_tax_number(tax_number)
+            if not ok_tax:
+                messagebox.showerror("خطأ", tax_res, parent=self)
+                self.entries['tax'].focus()
+                return
+            tax_number = tax_res
 
             # التحقق من تكرار اسم العميل والتنبيه
             chk_query = "SELECT id FROM customers WHERE name = ?" + (" AND id != ?" if self.customer_id else "")

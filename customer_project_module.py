@@ -573,6 +573,14 @@ class CustomerProjectModule:
                 messagebox.showerror("خطأ", "❌ يرجى إدخال اسم العميل")
                 return
 
+            from database import validate_tax_number
+            ok_tax, tax_res = validate_tax_number(vat)
+            if not ok_tax:
+                messagebox.showerror("خطأ", tax_res)
+                self.customer_vat_entry.focus_set()
+                return
+            vat = tax_res
+
             # فحص تكرار اسم العميل والتنبيه
             existing_cust = self.db.execute_query("SELECT id FROM customers WHERE name = ?", (name,))
             if existing_cust:
@@ -775,6 +783,12 @@ class CustomerProjectModule:
                     c_name = name_entry.get().strip()
                     if not c_name:
                         messagebox.showerror("خطأ", "❌ يرجى إدخال اسم العميل", parent=edit_window)
+                        return
+                    from database import validate_tax_number
+                    ok_tax, tax_res = validate_tax_number(vat_entry.get())
+                    if not ok_tax:
+                        messagebox.showerror("خطأ", tax_res, parent=edit_window)
+                        vat_entry.focus_set()
                         return
                     # فحص تكرار الاسم
                     chk = self.db.execute_query("SELECT id FROM customers WHERE name = ? AND id != ?", (c_name, customer_id))
