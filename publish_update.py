@@ -41,7 +41,7 @@ def update_version_files(new_ver=None, new_changelog=None):
     vdata["release_date"] = datetime.now().strftime("%Y-%m-%d")
     vdata["download_url"] = f"https://github.com/{REPO}/releases/download/v{ver}/Fawateery.exe"
     if new_changelog:
-        vdata["changelog"] = new_changelog
+        vdata["changelog"] = new_changelog.replace("\\n", "\n")
 
     with open("version.json", "w", encoding="utf-8") as f:
         json.dump(vdata, f, ensure_ascii=False, indent=2)
@@ -111,7 +111,11 @@ def push_to_github_main(ver):
     print("☁️ 4/5 رفع الكود وملف version.json إلى فرع main على GitHub ...")
     clone_dir = os.path.join(tempfile.gettempdir(), "fw_repo_sync")
     if os.path.exists(clone_dir):
-        shutil.rmtree(clone_dir, ignore_errors=True)
+        import stat
+        def _on_rm_error(func, path, exc_info):
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+        shutil.rmtree(clone_dir, onerror=_on_rm_error)
     subprocess.run(["git", "clone", f"https://github.com/{REPO}.git", clone_dir], check=True)
 
     files = [

@@ -13,7 +13,7 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-CURRENT_VERSION = "1.0.4"
+CURRENT_VERSION = "1.0.5"
 GITHUB_REPO = "Belal-Omar/Fawateery"
 VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
 # للاختبار فقط: تحويل فحص التحديث إلى خادم محلي (لا يُستخدم عند العميل)
@@ -121,68 +121,50 @@ def check_for_updates(parent=None, silent=False):
 def show_update_prompt(parent, info):
     """عرض نافذة إشعار التحديث العصري مع سجل التغييرات"""
     dialog = tk.Toplevel(parent)
-    dialog.title("🚀 يتوفر تحديث جديد لبرنامج فواتيري")
-    dialog.geometry("540x460")
-    dialog.minsize(500, 420)
-    dialog.resizable(False, False)
+    dialog.title("تحديث جديد متاح - برنامج فواتيري")
+    dialog.resizable(True, True)
     dialog.transient(parent)
     dialog.grab_set()
     dialog.configure(bg='#F8FAFC')
+    dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+    dialog.bind("<Escape>", lambda e: dialog.destroy())
 
-    # توسيط النافذة
+    # ضبط الحجم والتوسيط بما يتناسب مع دقة الشاشة
     try:
         dialog.update_idletasks()
         sw = dialog.winfo_screenwidth()
         sh = dialog.winfo_screenheight()
-        x = max(20, (sw - 540) // 2)
-        y = max(20, (sh - 460) // 2)
-        dialog.geometry(f"540x460+{x}+{y}")
+        win_w = min(640, max(480, sw - 80))
+        win_h = min(540, max(400, sh - 100))
+        dialog.minsize(460, 380)
+        x = max(10, (sw - win_w) // 2)
+        y = max(10, (sh - win_h) // 2)
+        dialog.geometry(f"{win_w}x{win_h}+{x}+{y}")
     except Exception:
-        pass
+        dialog.geometry("620x520")
+        dialog.minsize(460, 380)
 
-    # Header
-    header = tk.Frame(dialog, bg='#1E3A8A', padx=20, pady=15)
-    header.pack(fill='x')
-    tk.Label(header, text="✨ يتوفر تحديث جديد للبرنامج",
+    # 1. Header (أعلى النافذة)
+    header = tk.Frame(dialog, bg='#1E3A8A', padx=22, pady=16)
+    header.pack(side='top', fill='x')
+    tk.Label(header, text="يتوفر تحديث جديد لبرنامج فواتيري",
              font=('Segoe UI', 15, 'bold'), fg='white', bg='#1E3A8A').pack(anchor='center')
-    
+
     v_new = info.get('version', '')
     date_str = info.get('release_date', '')
-    sub_txt = f"الإصدار الجديد: v{v_new}   (إصدارك الحالي: v{CURRENT_VERSION})"
+    badge_frame = tk.Frame(header, bg='#1E3A8A')
+    badge_frame.pack(anchor='center', pady=(8, 0))
+    tk.Label(badge_frame, text=f"  الإصدار الجديد: v{v_new}  ",
+             font=('Segoe UI', 9, 'bold'), fg='#065F46', bg='#D1FAE5', padx=6, pady=2).pack(side='right', padx=4)
+    tk.Label(badge_frame, text=f"  إصدارك الحالي: v{CURRENT_VERSION}  ",
+             font=('Segoe UI', 9), fg='#E2E8F0', bg='#334155', padx=6, pady=2).pack(side='right', padx=4)
     if date_str:
-        sub_txt += f" | {date_str}"
-    tk.Label(header, text=sub_txt,
-             font=('Segoe UI', 9), fg='#93C5FD', bg='#1E3A8A').pack(anchor='center', pady=(4, 0))
+        tk.Label(badge_frame, text=f"  {date_str}  ",
+                 font=('Segoe UI', 9), fg='#DBEAFE', bg='#1D4ED8', padx=6, pady=2).pack(side='right', padx=4)
 
-    # محتوى التحديث وسجل التغييرات
-    body = tk.Frame(dialog, bg='#F8FAFC', padx=20, pady=12)
-    body.pack(fill='both', expand=True)
-
-    tk.Label(body, text="📋 أبرز التحسينات والمميزات في هذا الإصدار:",
-             font=('Segoe UI', 10, 'bold'), fg='#0F172A', bg='#F8FAFC').pack(anchor='e', pady=(0, 6))
-
-    card = tk.Frame(body, bg='white', highlightbackground='#CBD5E1', highlightthickness=1)
-    card.pack(fill='both', expand=True, pady=(0, 10))
-
-    text_box = tk.Text(card, font=('Segoe UI', 10), bg='white', fg='#334155',
-                       wrap='word', relief='flat', padx=10, pady=8)
-    scroll = ttk.Scrollbar(card, orient='vertical', command=text_box.yview)
-    text_box.configure(yscrollcommand=scroll.set)
-
-    scroll.pack(side='right', fill='y')
-    text_box.pack(side='left', fill='both', expand=True)
-
-    changelog = info.get('changelog', 'تحسينات في الأداء وإصلاحات عامة.')
-    text_box.insert('1.0', changelog)
-    text_box.configure(state='disabled')
-
-    # تنبيه أمان البيانات
-    tk.Label(body, text="🔒 بياناتك وفواتيرك محفوظة بالكامل ولن تتأثر إطلاقاً بعملية التحديث.",
-             font=('Segoe UI', 9), fg='#059669', bg='#F8FAFC').pack(anchor='e')
-
-    # الأزرار
-    footer = tk.Frame(dialog, bg='#F1F5F9', padx=20, pady=12, highlightbackground='#E2E8F0', highlightthickness=1)
-    footer.pack(fill='x', side='bottom')
+    # 2. Footer (مثبت دائماً في الأسفل قبل body حتى لا يختفي أبداً)
+    footer = tk.Frame(dialog, bg='#F1F5F9', padx=20, pady=12, highlightbackground='#CBD5E1', highlightthickness=1)
+    footer.pack(side='bottom', fill='x')
 
     def start_update():
         dialog.destroy()
@@ -190,17 +172,62 @@ def show_update_prompt(parent, info):
         if download_url:
             show_download_progress(parent, download_url, v_new)
 
-    btn_update = tk.Button(footer, text="  🚀 تحديث وتثبيت الآن  ",
-                           font=('Segoe UI', 10, 'bold'), bg='#10B981', fg='white',
+    btn_update = tk.Button(footer, text="  تحديث وتثبيت الآن  ",
+                           font=('Segoe UI', 11, 'bold'), bg='#10B981', fg='white',
                            activebackground='#059669', activeforeground='white',
-                           relief='flat', padx=18, pady=7, cursor='hand2', command=start_update)
+                           relief='flat', padx=22, pady=8, cursor='hand2', command=start_update)
     btn_update.pack(side='right', padx=(10, 0))
 
     btn_later = tk.Button(footer, text="تذكيري لاحقاً",
                           font=('Segoe UI', 10), bg='#64748B', fg='white',
                           activebackground='#475569', activeforeground='white',
-                          relief='flat', padx=15, pady=7, cursor='hand2', command=dialog.destroy)
+                          relief='flat', padx=16, pady=8, cursor='hand2', command=dialog.destroy)
     btn_later.pack(side='right')
+
+    # 3. Body (المحتوى القابل للتمرير في المنتصف)
+    body = tk.Frame(dialog, bg='#F8FAFC', padx=22, pady=14)
+    body.pack(side='top', fill='both', expand=True)
+
+    tk.Label(body, text="أبرز التحسينات والمميزات في هذا الإصدار:",
+             font=('Segoe UI', 11, 'bold'), fg='#0F172A', bg='#F8FAFC').pack(anchor='e', pady=(0, 8))
+
+    card = tk.Frame(body, bg='white', highlightbackground='#CBD5E1', highlightthickness=1)
+    card.pack(fill='both', expand=True, pady=(0, 10))
+
+    text_box = tk.Text(card, font=('Segoe UI', 10), bg='white', fg='#1E293B',
+                       wrap='word', relief='flat', padx=14, pady=12, height=8,
+                       spacing1=4, spacing2=3, spacing3=6)
+    scroll = ttk.Scrollbar(card, orient='vertical', command=text_box.yview)
+    text_box.configure(yscrollcommand=scroll.set)
+
+    scroll.pack(side='left', fill='y')
+    text_box.pack(side='right', fill='both', expand=True)
+
+    text_box.tag_configure('rtl_item', justify='right', font=('Segoe UI', 10), foreground='#1E293B')
+    text_box.tag_configure('rtl_bullet', justify='right', font=('Segoe UI', 10, 'bold'), foreground='#059669')
+    text_box.tag_configure('rtl_header', justify='right', font=('Segoe UI', 10, 'bold'), foreground='#1E3A8A')
+
+    raw_changelog = info.get('changelog', 'تحسينات في الأداء وإصلاحات عامة.')
+    clean_changelog = str(raw_changelog).replace('\\n', '\n')
+    lines = [ln.strip() for ln in clean_changelog.splitlines() if ln.strip()]
+    if not lines:
+        lines = ['تحسينات في الأداء وإصلاحات عامة.']
+
+    for idx, ln in enumerate(lines):
+        stripped = ln.lstrip('•-*✔✓ ').strip()
+        if idx > 0:
+            text_box.insert('end', '\n', 'rtl_item')
+        if ln.startswith(('•', '-', '*', '✔', '✓')):
+            text_box.insert('end', '\u200F✔  ', 'rtl_bullet')
+            text_box.insert('end', f"{stripped}", 'rtl_item')
+        else:
+            text_box.insert('end', f"\u200F{stripped}", 'rtl_header' if stripped.endswith(':') else 'rtl_item')
+
+    text_box.configure(state='disabled')
+
+    # تنبيه أمان البيانات
+    tk.Label(body, text="بياناتك وفواتيرك محفوظة بالكامل ولن تتأثر إطلاقاً بعملية التحديث.",
+             font=('Segoe UI', 9, 'bold'), fg='#059669', bg='#F8FAFC').pack(anchor='e')
 
 def show_download_progress(parent, url, new_ver):
     """نافذة تنزيل التحديث مع شريط تقدم حي"""
